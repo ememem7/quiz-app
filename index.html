@@ -1,232 +1,28 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-<meta charset="utf-8" />
+<meta charset="utf-8">
 <title>랜덤 기출 앱</title>
-<link rel="manifest" href="manifest.json" />
+<link rel="manifest" href="manifest.json">
 <script>
 if ("serviceWorker" in navigator) {
   navigator.serviceWorker.register("service-worker.js");
 }
 </script>
 <style>
-body { font-family: 'Noto Sans KR', Arial; max-width: 640px; margin: 0 auto; padding: 20px; }
-nav { display: flex; gap: 8px; margin-bottom: 16px; }
-nav button { flex: 1; padding: 12px; font-size: 16px; border-radius: 10px; border: 1px solid #ddd; background: #fff; cursor: pointer; }
-.section { display: none; }
-.section.active { display: block; }
-.btn { display:block; width:100%; padding:12px; margin:10px 0; font-size:18px; border-radius:10px; border:1px solid #aaa; background:#fff; cursor:pointer; }
-.correct { background:#b9f6ca !important; }
-.wrong   { background:#ffccbc !important; }
-#next { background:#90caf9; }
-input, textarea { width:100%; padding:10px; margin:8px 0; font-size:16px; box-sizing:border-box; }
-small { color:#666; }
-hr { border:0; border-top:1px solid #eee; margin:16px 0; }
+body { font-family: 'Noto Sans KR'; padding: 20px; text-align: center; }
+button {
+  width: 90%; padding: 15px; margin: 10px auto;
+  font-size: 18px; border-radius: 10px;
+}
 </style>
 </head>
 <body>
 
 <h2>📚 랜덤 기출 앱</h2>
 
-<nav>
-  <button id="tab-quiz">문제 풀기</button>
-  <button id="tab-add">문제 추가</button>
-  <button id="tab-more">설정</button>
-</nav>
+<button onclick="location.href='./quiz.html'">문제 풀기</button>
+<button onclick="location.href='./add.html'">문제 추가하기</button>
 
-<!-- 문제 풀기 -->
-<section id="view-quiz" class="section active">
-  <div id="quiz-box"></div>
-  <button id="next" class="btn">다음 문제</button>
-  <div id="mode-info"></div>
-</section>
-
-<!-- 문제 추가 -->
-<section id="view-add" class="section">
-  <h3>✍️ 문제 추가</h3>
-  <label>문제</label>
-  <textarea id="q-text" placeholder="문제를 입력하세요"></textarea>
-
-  <label>보기를 콤마(,)로 구분</label>
-  <input id="q-choices" placeholder="예: 담석,간염,담낭 폴립,췌장염" />
-
-  <label>정답</label>
-  <input id="q-answer" placeholder="예: 담석" />
-
-  <button id="btn-save" class="btn">저장하기</button>
-  <small id="save-msg"></small>
-
-  <hr />
-  <button id="btn-export" class="btn">모든 문제 내보내기(JSON)</button>
-  <button id="btn-import" class="btn">문제 가져오기(JSON 붙여넣기)</button>
-</section>
-
-<!-- 설정/도구 -->
-<section id="view-more" class="section">
-  <h3>⚙️ 설정</h3>
-  <button id="btn-clear-wrong" class="btn">오답 리스트 초기화</button>
-  <button id="btn-clear-all" class="btn">모든 문제 삭제(주의)</button>
-  <small>문제/오답은 이 기기의 저장공간(LocalStorage)에만 저장됩니다.</small>
-</section>
-
-<script>
-// ===== 공통 저장 =====
-const load = (k, d) => JSON.parse(localStorage.getItem(k) || d);
-const save = (k, v) => localStorage.setItem(k, JSON.stringify(v));
-
-// ===== 탭 전환 =====
-const show = id => {
-  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
-  document.getElementById(id).classList.add('active');
-};
-document.getElementById('tab-quiz').onclick = () => show('view-quiz');
-document.getElementById('tab-add').onclick  = () => show('view-add');
-document.getElementById('tab-more').onclick = () => show('view-more');
-
-// ===== 문제 데이터 =====
-let all = load('quizData', '[]') || [];
-let wrong = load('wrongList', '[]') || [];
-
-// 초기 상태: 오답이 있으면 오답부터, 없으면 전체
-let pool = (wrong.length > 0 ? wrong : all).slice();
-let mode = (wrong.length > 0 ? '오답 우선 모드' : '전체 랜덤 모드');
-
-function shuffle(a){
-  let arr = a.slice();
-  for(let i=arr.length-1;i>0;i--){
-    const j = Math.floor(Math.random()*(i+1));
-    [arr[i],arr[j]] = [arr[j],arr[i]];
-  }
-  return arr;
-}
-
-let order = shuffle([...Array(pool.length).keys()]);
-let cur = 0;
-let currentQ = null;
-
-function ensurePool(){
-  all = load('quizData','[]') || [];
-  wrong = load('wrongList','[]') || [];
-  pool = (wrong.length > 0 ? wrong : all).slice();
-  mode = (wrong.length > 0 ? '오답 우선 모드' : '전체 랜덤 모드');
-  order = shuffle([...Array(pool.length).keys()]);
-  cur = 0;
-}
-
-function renderMode(){
-  const el = document.getElementById('mode-info');
-  el.innerHTML = `<small>현재: ${mode} (문항 ${pool.length}개)</small>`;
-}
-
-function loadQuestion(){
-  if(pool.length === 0){
-    document.getElementById('quiz-box').innerHTML =
-      `<h3>아직 문제가 없어요 🥺</h3><p>상단의 <b>문제 추가</b> 탭에서 문제를 넣어주세요.</p>`;
-    renderMode();
-    return;
-  }
-  const q = pool[order[cur]];
-  currentQ = q;
-
-  let html = `<h3>${q.q}</h3>`;
-  const shuf = shuffle(q.choices || []);
-  shuf.forEach(c => {
-    html += `<button class="btn choice">${c}</button>`;
-  });
-
-  document.getElementById('quiz-box').innerHTML = html;
-
-  document.querySelectorAll('.choice').forEach(btn => {
-    btn.onclick = () => check(btn, q.answer);
-  });
-
-  renderMode();
-}
-
-function check(btn, answer){
-  document.querySelectorAll('.choice').forEach(b => b.disabled = true);
-
-  if(btn.innerText === answer){
-    btn.classList.add('correct');
-    // 오답 리스트에 있으면 제거
-    wrong = load('wrongList','[]') || [];
-    wrong = wrong.filter(x => x.q !== currentQ.q);
-    save('wrongList', wrong);
-  } else {
-    btn.classList.add('wrong');
-    document.querySelectorAll('.choice').forEach(b => {
-      if(b.innerText === answer) b.classList.add('correct');
-    });
-    // 오답 저장(중복 방지)
-    wrong = load('wrongList','[]') || [];
-    if(!wrong.some(x => x.q === currentQ.q)){
-      wrong.push(currentQ);
-      save('wrongList', wrong);
-    }
-  }
-}
-
-document.getElementById('next').onclick = () => {
-  if(pool.length === 0){ return; }
-  cur++;
-  if(cur >= pool.length){
-    // 세션 끝 → 최신 오답/전체 상태로 갱신
-    ensurePool();
-  }
-  loadQuestion();
-};
-
-// ===== 문제 추가 =====
-document.getElementById('btn-save').onclick = () => {
-  const q = document.getElementById('q-text').value.trim();
-  const cs = document.getElementById('q-choices').value.split(',').map(s => s.trim()).filter(Boolean);
-  const a = document.getElementById('q-answer').value.trim();
-
-  if(!q || cs.length < 2 || !a){
-    alert('문제/보기/정답을 입력하세요!');
-    return;
-  }
-  if(!cs.includes(a)){
-    alert('정답은 보기 중 하나여야 합니다.');
-    return;
-  }
-
-  all = load('quizData','[]') || [];
-  all.push({ q, choices: cs, answer: a });
-  save('quizData', all);
-
-  document.getElementById('q-text').value = '';
-  document.getElementById('q-choices').value = '';
-  document.getElementById('q-answer').value = '';
-  document.getElementById('save-msg').innerText = '✅ 저장 완료! 상단 탭에서 바로 풀 수 있어요.';
-
-  // 새 문제 반영
-  ensurePool();
-};
-
-// 내보내기/가져오기
-document.getElementById('btn-export').onclick = () => {
-  const data = JSON.stringify(load('quizData','[]') || [], null, 2);
-  prompt('아래 JSON을 복사하세요', data);
-};
-document.getElementById('btn-import').onclick = () => {
-  const text = prompt('붙여넣을 JSON을 입력하세요');
-  if(!text) return;
-  try {
-    const arr = JSON.parse(text);
-    if(!Array.isArray(arr)) throw new Error();
-    save('quizData', arr);
-    ensurePool();
-    alert('✅ 가져오기 완료!');
-  } catch(e){
-    alert('JSON 형식이 올바르지 않습니다.');
-  }
-};
-
-// 최초 진입
-ensurePool();
-loadQuestion();
-</script>
 </body>
 </html>
-
