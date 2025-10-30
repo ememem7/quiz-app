@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>랜덤 기출 앱</title>
+<link rel="manifest" href="manifest.json">
+<script>
+if ("serviceWorker" in navigator) {
+  navigator.serviceWorker.register("service-worker.js");
+}
+</script>
+<style>
+body { font-family: 'Noto Sans KR'; padding: 20px; text-align: center; }
+button {
+  width: 90%; padding: 15px; margin: 10px auto;
+  font-size: 18px; border-radius: 10px;
+}
+</style>
+</head>
+<body>
+
+<h2>📚 랜덤 기출 앱</h2>
+
+<button onclick="location.href='quiz.html'">문제 풀기</button>
+<button onclick="location.href='add.html'">문제 추가하기</button>
+
+</body>
+</html>

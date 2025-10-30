@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>퀴즈 풀기</title>
+<style>
+body { font-family: 'Noto Sans KR'; padding: 20px; }
+button {
+  display: block; width: 100%; margin: 10px 0;
+  padding: 12px; font-size: 18px; border-radius: 10px;
+  border: 1px solid #aaa; background: #fff;
+}
+.correct { background: #b9f6ca !important; }
+.wrong { background: #ffccbc !important; }
+#next { background:#90caf9; margin-top: 15px; }
+</style>
+</head>
+<body>
+
+<h2>🧠 랜덤 기출 퀴즈</h2>
+<div id="quiz"></div>
+<button id="next" onclick="nextQuestion()">다음 문제</button>
+<button onclick="location.href='index.html'">메뉴로 돌아가기</button>
+
+<script>
+let saved = JSON.parse(localStorage.getItem("quizData") || "[]");
+let wrongList = JSON.parse(localStorage.getItem("wrongList") || "[]");
+
+// 오답 있으면 오답 먼저 풀기
+let qData = wrongList.length > 0 ? wrongList : saved;
+
+if(qData.length === 0){
+  document.body.innerHTML = "<h2>문제를 먼저 추가하세요!</h2>";
+  throw new Error("No questions");
+}
+
+function shuffle(arr){
+  let a=[...arr];
+  for(let i=a.length-1;i>0;i--){
+    let j=Math.floor(Math.random()*(i+1));
+    [a[i],a[j]]=[a[j],a[i]];
+  }
+  return a;
+}
+
+let order = shuffle([...Array(qData.length).keys()]);
+let current = 0;
+
+function loadQuestion(){
+  const q = qData[order[current]];
+  window.currentQuestion = q;
+
+  let html = `<h3>${q.q}</h3>`;
+  let shuffled = shuffle(q.choices);
+  
+  shuffled.forEach(c=>{
+    html += `<button class='choice'>${c}</button>`;
+  });
+
+  document.getElementById("quiz").innerHTML = html;
+
+  document.querySelectorAll(".choice").forEach(btn=>{
+    btn.onclick = () => check(btn, q.answer);
+  });
+}
+
+function check(btn, answer){
+  let q = window.currentQuestion;
+  document.querySelectorAll(".choice").forEach(b=>b.disabled=true);
+
+  if(btn.innerText === answer){
+    btn.classList.add("correct");
+
+    // 만약 오답 리스트에 있었으면 제거
+    wrongList = wrongList.filter(x => x.q !== q.q);
+    localStorage.setItem("wrongList", JSON.stringify(wrongList));
+    
+  } else {
+    btn.classList.add("wrong");
+
+    // 오답 저장 (중복 방지)
+    if(!wrongList.some(x => x.q === q.q)){
+      wrongList.push(q);
+      localStorage.setItem("wrongList", JSON.stringify(wrongList));
+    }
+
+    document.querySelectorAll(".choice").forEach(b=>{
+      if(b.innerText === answer) b.classList.add("correct");
+    });
+  }
+}
+
+function nextQuestion(){
+  current++;
+  if(current >= qData.length){
+    // 오답 풀었으면 자동 전체 문제모드로
+    wrongList = JSON.parse(localStorage.getItem("wrongList") || "[]");
+    location.reload();  
+    return;
+  }
+  loadQuestion();
+}
+
+loadQuestion();
+</script>
+
+</body>
+</html>

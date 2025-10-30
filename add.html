@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>문제 추가</title>
+<style>
+body { font-family: 'Noto Sans KR'; padding: 20px; }
+input, button { width: 100%; padding: 10px; margin: 8px 0; font-size: 16px; }
+textarea { width: 100%; height: 80px; padding: 10px; margin: 8px 0; font-size: 16px; }
+</style>
+</head>
+<body>
+
+<h2>✍️ 문제 추가</h2>
+
+<label>문제</label>
+<textarea id="question"></textarea>
+
+<label>보기를 콤마(,)로 구분해서 입력</label>
+<input id="choices" placeholder="예: 담석,간염,담낭 폴립,췌장염">
+
+<label>정답</label>
+<input id="answer" placeholder="예: 담석">
+
+<button onclick="saveQuestion()">저장하기</button>
+<button onclick="location.href='index.html'">메뉴로 돌아가기</button>
+
+<script>
+// 문제 저장함수
+function saveQuestion() {
+  let q = document.getElementById("question").value.trim();
+  let c = document.getElementById("choices").value.split(",").map(s => s.trim());
+  let a = document.getElementById("answer").value.trim();
+
+  if(!q || c.length < 2 || !a){
+    alert("문제/보기/정답을 입력하세요!");
+    return;
+  }
+
+  let saved = JSON.parse(localStorage.getItem("quizData") || "[]");
+  saved.push({ q: q, choices: c, answer: a });
+  localStorage.setItem("quizData", JSON.stringify(saved));
+
+  alert("✅ 저장 완료!");
+  document.getElementById("question").value = "";
+  document.getElementById("choices").value = "";
+  document.getElementById("answer").value = "";
+}
+</script>
+
+</body>
+</html>
